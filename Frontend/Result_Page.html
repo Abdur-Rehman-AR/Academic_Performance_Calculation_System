@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UOE | Result Page</title>
+  <link rel="icon" href="uoe logo.png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      padding: 20px;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+    }
+
+    .header {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+
+    .header p {
+      font-size: 14px;
+      color: #555;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+
+    th {
+      background: #4facfe;
+      color: white;
+    }
+
+    .btn-export {
+      margin-top: 20px;
+      width: 250px;
+      padding: 15px;
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3);
+      transition: 0.3s;
+    }
+
+    .btn-export:hover {
+      background: #ff4c4c;
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(255, 0, 0, 0.4);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <h1>University of Education (UOE)</h1>
+    <p id="classInfo">Loading...</p>
+    <p id="teacherInfo">Loading...</p>
+  </div>
+
+  <table id="resultTable">
+    <thead id="thead"></thead>
+    <tbody id="resultBody"></tbody>
+  </table>
+
+  <button class="btn-export" id="exportBtn">Export as PDF</button>
+
+  <script>
+    async function loadData() {
+      try {
+        // 1. Fetch all data from backend
+        const res = await fetch("http://localhost:3000/latest-session");
+        const data = await res.json();
+
+        // 2. Header
+        document.getElementById("classInfo").textContent =
+          `Subject: ${data.subject} | Semester: ${data.semester} | Department: ${data.department} | Shift: ${data.shift}`;
+
+        document.getElementById("teacherInfo").textContent =
+          `Teacher Name: ${data.teacher_name}`;
+
+        // 3. FLAGS (NOW DYNAMIC ✅)
+        const hasPractical = data.practical_total != null;
+        const hasProject = data.project_total != null;
+
+        // 4. STUDENTS (FROM DATABASE ✅)
+        const students = data.students || []; // backend must send this
+
+        // 5. WEIGHTS (FROM DATABASE ✅)
+        const weights = {
+          mid: data.mid_weight,
+          final: data.final_weight,
+          assignment: data.assignment_weight,
+          quizzes: data.quizzes_weight,
+          presentation: data.presentation_weight,
+          practical: data.practical_weight || 0,
+          project: data.project_weight || 0
+        };
+
+        // 6. CREATE HEADER
+        const thead = document.getElementById('thead');
+        let headerRow = `
+    <tr>
+      <th>Student Name</th>
+      <th>Mid</th>
+      <th>Final</th>
+      <th>Assignment</th>
+      <th>Quizzes</th>
+      <th>Presentation</th>
+    `;
+
+        if (hasPractical) headerRow += `<th>Practical</th>`;
+        if (hasProject) headerRow += `<th>Term Project</th>`;
+
+        headerRow += `
+      <th>Sessional</th>
+      <th>Total (100)</th>
+      <th>Percentage (%)</th>
+      <th>Grade</th>
+      <th>Status</th>
+      <th>Class Rank</th>
+    </tr>
+    `;
+
+        thead.innerHTML = headerRow;
+
+        // 7. CALCULATE FUNCTION
+        function calculateSessional(student) {
+          let sessional = 0;
+
+          sessional += (student.mid || 0) * weights.mid / 100;
+          sessional += (student.final || 0) * weights.final / 100;
+          sessional += (student.assignment || 0) * weights.assignment / 100;
+          sessional += (student.quizzes || 0) * weights.quizzes / 100;
+          sessional += (student.presentation || 0) * weights.presentation / 100;
+
+          if (hasPractical) sessional += (student.practical || 0) * weights.practical / 100;
+          if (hasProject) sessional += (student.project || 0) * weights.project / 100;
+
+          return sessional;
+        }
+
+        // 8. CALCULATIONS
+        students.forEach(s => {
+          s.sessional = calculateSessional(s);
+          s.total = s.sessional;
+        });
+
+        students.sort((a, b) => b.total - a.total);
+
+        // 9. TABLE BODY
+        const resultBody = document.getElementById('resultBody');
+        resultBody.innerHTML = "";
+
+        students.forEach((student, index) => {
+          let row = `
+      <tr>
+        <td>${student.name || ''}</td>
+        <td>${student.mid || ''}</td>
+        <td>${student.final || ''}</td>
+        <td>${student.assignment || ''}</td>
+        <td>${student.quizzes || ''}</td>
+        <td>${student.presentation || ''}</td>
+      `;
+
+          if (hasPractical) row += `<td>${student.practical || ''}</td>`;
+          if (hasProject) row += `<td>${student.project || ''}</td>`;
+
+          row += `
+        <td>${student.sessional.toFixed(2)}</td>
+        <td>${student.total.toFixed(2)}</td>
+        <td>${student.total.toFixed(2)}</td>
+        <td>${student.total >= 50 ? 'A' : 'F'}</td>
+        <td>${student.total >= 50 ? 'Pass' : 'Fail'}</td>
+        <td>${index + 1}</td>
+      </tr>
+      `;
+
+          resultBody.innerHTML += row;
+        });
+
+      } catch (error) {
+        console.error("Error:", error);
+      }
+    }
+
+    // CALL FUNCTION
+    loadData();
+
+    // EXPORT BUTTON
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      alert('Export to PDF functionality will be implemented later.');
+    });
+  </script>
+
+</body>
+
+</html>

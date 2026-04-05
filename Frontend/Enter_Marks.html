@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UOE | Enter Student Marks</title>
+  <link rel="icon" href="uoe logo.png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      padding: 20px;
+    }
+
+    .header {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+
+    .header p {
+      font-size: 14px;
+      color: #555;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+
+    th {
+      background: #4facfe;
+      color: white;
+    }
+
+    input[type="number"] {
+      width: 70px;
+      padding: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+
+    .submit-btn {
+      margin-top: 15px;
+      width: 100%;
+      padding: 10px;
+      background: #4facfe;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .submit-btn:hover {
+      background: #00c6ff;
+    }
+
+    .checkbox-cell input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <h1>University of Education (UOE)</h1>
+    <p id="classInfo">Loading...</p>
+    <p id="teacherInfo">Loading...</p>
+  </div>
+
+  <form id="marksForm">
+    <table id="marksTable">
+      <thead>
+        <tr>
+          <th>Student Name</th>
+          <th>Mid</th>
+          <th>Final</th>
+          <th>Assignment</th>
+          <th>Quizzes</th>
+          <th>Presentation</th>
+          <th>Practical</th>
+          <th>Term Project</th>
+        </tr>
+      </thead>
+      <tbody id="marksBody"></tbody>
+    </table>
+    <button type="submit" class="submit-btn">Submit Marks</button>
+  </form>
+
+  <script>
+    async function loadData() {
+      try {
+        // 1. Fetch the latest session info from backend
+        const res = await fetch("http://localhost:3000/latest-session");
+        const data = await res.json();
+
+        // 2. Update header dynamically
+        document.getElementById("classInfo").textContent =
+          `Subject: ${data.subject} | Semester: ${data.semester} | Department: ${data.department} | Shift: ${data.shift}`;
+
+        document.getElementById("teacherInfo").textContent =
+          `Teacher Name: ${data.teacher_name}`;
+
+        // 3. Determine feature availability from backend strings
+        const hasPractical = data.practical_status === "Available";
+        const hasProject = data.project_status === "Available";
+        const numberOfStudents = data.number_of_students;
+
+        const marksBody = document.getElementById("marksBody");
+        marksBody.innerHTML = "";
+
+        // 4. Dynamically create student rows
+        for (let i = 0; i < numberOfStudents; i++) {
+          const tr = document.createElement("tr");
+
+          // Helper function to create inputs
+          function createInput(type = "number") {
+            const input = document.createElement("input");
+            input.type = type;
+            if (type === "number") {
+              input.min = 0;
+            }
+            input.required = true;
+            return input;
+          }
+
+          // Standard Fields: Student Name, Mid, Final, Assignment, Quizzes, Presentation
+          const fields = ["text", "number", "number", "number", "number", "number"];
+          fields.forEach(type => {
+            const td = document.createElement("td");
+            td.appendChild(createInput(type));
+            tr.appendChild(td);
+          });
+
+          // Practical Column Logic
+          let tdPractical = document.createElement("td");
+          if (hasPractical) {
+            tdPractical.appendChild(createInput());
+          } else {
+            tdPractical.textContent = "-";
+          }
+          tr.appendChild(tdPractical);
+
+          // Project Column Logic
+          let tdProject = document.createElement("td");
+          if (hasProject) {
+            tdProject.appendChild(createInput());
+          } else {
+            tdProject.textContent = "-";
+          }
+          tr.appendChild(tdProject);
+
+          marksBody.appendChild(tr);
+        }
+
+        // 5. Submit marks logic
+        const form = document.getElementById("marksForm");
+        form.onsubmit = async (e) => {
+          e.preventDefault();
+
+          const rows = Array.from(document.querySelectorAll("#marksBody tr"));
+          const students = rows.map(row => {
+            const inputs = row.querySelectorAll("input");
+
+            // Start the data object with fixed fields (Indices 0 to 5)
+            const studentObj = {
+              student_name: inputs[0].value,
+              mid_marks: Number(inputs[1].value),
+              final_marks: Number(inputs[2].value),
+              assignment_marks: Number(inputs[3].value),
+              quizzes_marks: Number(inputs[4].value),
+              presentation_marks: Number(inputs[5].value),
+              practical_marks: null,
+              project_marks: null
+            };
+
+            // Index tracking for optional inputs starting at index 6
+            let currentInputIndex = 6;
+
+            if (hasPractical) {
+              studentObj.practical_marks = Number(inputs[currentInputIndex].value);
+              currentInputIndex++; // Increment index only if Practical was rendered
+            }
+
+            if (hasProject) {
+              studentObj.project_marks = Number(inputs[currentInputIndex].value);
+            }
+
+            return studentObj;
+          });
+
+          // 6. Send data to backend
+          const submitRes = await fetch("http://localhost:3000/student-marks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ students, sessional_id: data.id })
+          });
+
+          const result = await submitRes.json();
+          alert(result.message);
+
+          if (submitRes.ok) {
+            window.location.href = "Result_Page.html";
+          }
+        };
+
+      } catch (err) {
+        console.error("Error:", err);
+        alert("Failed to load session data. Check server logs.");
+      }
+    }
+
+    window.onload = loadData;
+  </script>
+
+</body>
+
+</html>

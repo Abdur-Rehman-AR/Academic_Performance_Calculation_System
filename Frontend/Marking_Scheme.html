@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UOE | Marks Setup</title>
+  <link rel="icon" href="uoe logo.png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+    }
+
+    .container {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 12px;
+      width: 500px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      animation: fadeIn 0.8s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+    }
+
+    .input-group label {
+      font-size: 14px;
+      color: #555;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .input-group input,
+    .input-group select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      outline: none;
+      transition: 0.3s;
+    }
+
+    .input-group input:focus,
+    .input-group select:focus {
+      border-color: #4facfe;
+      box-shadow: 0 0 5px rgba(79, 172, 254, 0.5);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      background: #4facfe;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn:hover {
+      background: #00c6ff;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .checkbox-group input {
+      width: auto;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h2>Marks Setup</h2>
+    <form id="sessionalForm">
+      <div class="input-group">
+        <label for="midTotal">Mid Total Marks</label>
+        <input type="number" id="midTotal" placeholder="Total Marks for Mid" required step="any">
+      </div>
+      <div class="input-group">
+        <label for="midWeight">Mid Weightage (%)</label>
+        <input type="number" id="midWeight" placeholder="Weightage for Sessional" required step="any">
+      </div>
+
+      <div class="input-group">
+        <label for="finalTotal">Final Total Marks</label>
+        <input type="number" id="finalTotal" placeholder="Total Marks for Final" required step="any">
+      </div>
+      <div class="input-group">
+        <label for="finalWeight">Final Weightage (%)</label>
+        <input type="number" id="finalWeight" placeholder="Weightage for Sessional" required step="any">
+      </div>
+
+      <div class="input-group">
+        <label for="assignmentTotal">Assignment Total Marks</label>
+        <input type="number" id="assignmentTotal" placeholder="Total Marks for Assignment" required step="any">
+        <label for="assignmentWeight">Assignment Weightage (%)</label>
+        <input type="number" id="assignmentWeight" placeholder="Weightage for Sessional" required step="any">
+      </div>
+
+      <div class="input-group">
+        <label for="quizzesTotal">Quizzes Total Marks</label>
+        <input type="number" id="quizzesTotal" placeholder="Total Marks for Quizzes" required step="any">
+        <label for="quizzesWeight">Quizzes Weightage (%)</label>
+        <input type="number" id="quizzesWeight" placeholder="Weightage for Sessional" required step="any">
+      </div>
+
+      <div class="input-group">
+        <label for="presentationTotal">Presentation Total Marks</label>
+        <input type="number" id="presentationTotal" placeholder="Total Marks for Presentation" required step="any">
+        <label for="presentationWeight">Presentation Weightage (%)</label>
+        <input type="number" id="presentationWeight" placeholder="Weightage for Sessional" required step="any">
+      </div>
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="hasPractical">
+        <label for="hasPractical">Subject has Practical?</label>
+      </div>
+      <div class="input-group" id="practicalGroup" style="display:none;">
+        <label for="practicalTotal">Practical Total Marks</label>
+        <input type="number" id="practicalTotal" placeholder="Total Marks for Practical" step="any">
+        <label for="practicalWeight">Practical Weightage (%)</label>
+        <input type="number" id="practicalWeight" placeholder="Weightage for Sessional" step="any">
+      </div>
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="hasProject">
+        <label for="hasProject">Subject has Term Project?</label>
+      </div>
+      <div class="input-group" id="projectGroup" style="display:none;">
+        <label for="projectTotal">Term Project Marks Total</label>
+        <input type="number" id="projectTotal" placeholder="Total Marks for Project" step="any">
+        <label for="projectWeight">Term Project Weightage (%)</label>
+        <input type="number" id="projectWeight" placeholder="Weightage for Sessional" step="any">
+      </div>
+
+      <button type="submit" class="btn">Save Sessional Setup</button>
+    </form>
+  </div>
+
+  <script>
+
+    // Disable scroll changing on number inputs
+    document.querySelectorAll('input[type=number]').forEach(input => {
+      input.addEventListener('wheel', (e) => e.preventDefault());
+    });
+
+    const practicalCheckbox = document.getElementById('hasPractical');
+    const practicalGroup = document.getElementById('practicalGroup');
+    practicalCheckbox.addEventListener('change', () => {
+      practicalGroup.style.display = practicalCheckbox.checked ? 'block' : 'none';
+    });
+
+    const projectCheckbox = document.getElementById('hasProject');
+    const projectGroup = document.getElementById('projectGroup');
+    projectCheckbox.addEventListener('change', () => {
+      projectGroup.style.display = projectCheckbox.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('sessionalForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const data = {
+        mid: { total: document.getElementById('midTotal').value, weight: document.getElementById('midWeight').value },
+        final: { total: document.getElementById('finalTotal').value, weight: document.getElementById('finalWeight').value },
+        practical: practicalCheckbox.checked ? { total: document.getElementById('practicalTotal').value, weight: document.getElementById('practicalWeight').value } : null,
+        assignment: { total: document.getElementById('assignmentTotal').value, weight: document.getElementById('assignmentWeight').value },
+        quizzes: { total: document.getElementById('quizzesTotal').value, weight: document.getElementById('quizzesWeight').value },
+        presentation: { total: document.getElementById('presentationTotal').value, weight: document.getElementById('presentationWeight').value },
+        project: projectCheckbox.checked ? { total: document.getElementById('projectTotal').value, weight: document.getElementById('projectWeight').value } : null
+      };
+
+      console.log('Sessional Setup Data:', data);
+
+      // <<< REPLACE THIS ALERT + REDIRECT WITH FETCH >>>
+      fetch("http://localhost:3000/sessional-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+        .then(res => res.text())
+        .then(msg => {
+          alert(msg); // show success message
+          window.location.href = "Enter_Marks.html"; // redirect after save
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Error saving data!");
+        });
+
+    });
+  </script>
+
+</body>
+
+</html>

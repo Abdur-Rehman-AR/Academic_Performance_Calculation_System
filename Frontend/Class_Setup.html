@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UOE | Academic Performance Calculation System</title>
+  <link rel="icon" href="uoe logo.png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+    }
+
+    .container {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 12px;
+      width: 350px;
+      height: 550px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      animation: fadeIn 0.8s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    .input-group label {
+      font-size: 14px;
+      color: #555;
+    }
+
+    .input-group select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      outline: none;
+      transition: 0.3s;
+    }
+
+    .input-group select:focus {
+      border-color: #4facfe;
+      box-shadow: 0 0 5px rgba(79, 172, 254, 0.5);
+    }
+
+    .input-group input {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      outline: none;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      background: #4facfe;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn:hover {
+      background: #00c6ff;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h2>Class Setup</h2>
+
+    <form id="setupForm">
+      <div class="input-group">
+        <label for="department">Department</label>
+        <select id="department" required>
+          <option value="">Select Department</option>
+          <option>Computer Science</option>
+          <option>Information Technology</option>
+          <option>Business Administration</option>
+          <option>Mathematics</option>
+          <option>Physics</option>
+          <option>Chemistry</option>
+          <option>Zoology</option>
+          <option>Botany</option>
+          <option>Education</option>
+          <option>Islamiat</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label for="semester">Semester</label>
+        <select id="semester" required>
+          <option value="">Select Semester</option>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          <option>5</option>
+          <option>6</option>
+          <option>7</option>
+          <option>8</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label for="shift">Shift</label>
+        <select id="shift" required>
+          <option value="">Select Shift</option>
+          <option>Morning</option>
+          <option>Evening</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label for="subject">Subject</label>
+        <input type="text" id="subject" required placeholder="Enter subject name" title="Subject name" />
+
+        <label for="students">Number of Students</label>
+        <input type="number" id="students" min="1" max="200" required placeholder="Enter student count"
+          title="Number of students" />
+      </div>
+
+      <button type="submit" class="btn">Continue</button>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById("setupForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const data = {
+        department: document.getElementById("department").value,
+        semester: document.getElementById("semester").value,
+        shift: document.getElementById("shift").value,
+        subject: document.getElementById("subject").value,
+        students: document.getElementById("students").value
+      };
+
+      fetch("http://localhost:3000/class-setup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      })
+        .then(res => res.text())
+        .then(response => {
+          alert("Setup Saved!");
+          window.location.href = "Marking_Scheme.html";
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Error saving data!");
+        });
+    });
+  </script>
+
+</body>
+
+</html>
