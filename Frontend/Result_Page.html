@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+<script src="pdf-generator.js"></script>
 
 <head>
   <meta charset="UTF-8">
@@ -100,129 +104,158 @@
   <script>
     async function loadData() {
       try {
-        // 1. Fetch all data from backend
-        const res = await fetch("http://localhost:3000/latest-session");
-        const data = await res.json();
+        // 1. Fetch data from both APIs
+        const [resultRes, weightRes] = await Promise.all([
+          fetch("http://localhost:3000/result-view"),
+          fetch("http://localhost:3000/weightage-calculater")
+        ]);
 
-        // 2. Header
+        if (!resultRes.ok || !weightRes.ok) throw new Error("Failed to fetch API data");
+
+        const resultData = await resultRes.json();
+        const weightData = await weightRes.json();
+
+        // 2. Update Header Info
         document.getElementById("classInfo").textContent =
-          `Subject: ${data.subject} | Semester: ${data.semester} | Department: ${data.department} | Shift: ${data.shift}`;
+          `Subject: ${resultData.subject} | Semester: ${resultData.semester} | Department: ${resultData.department} | Shift: ${resultData.shift}`;
 
         document.getElementById("teacherInfo").textContent =
-          `Teacher Name: ${data.teacher_name}`;
+          `Teacher Name: ${resultData.teacher_name}`;
 
-        // 3. FLAGS (NOW DYNAMIC ✅)
-        const hasPractical = data.practical_total != null;
-        const hasProject = data.project_total != null;
+        // 3. Setup Dynamic Flags & Weights/Totals
+        const hasPractical = weightData.practical_total != null && weightData.practical_weight != null;
+        const hasProject = weightData.project_total != null && weightData.project_weight != null;
 
-        // 4. STUDENTS (FROM DATABASE ✅)
-        const students = data.students || []; // backend must send this
-
-        // 5. WEIGHTS (FROM DATABASE ✅)
-        const weights = {
-          mid: data.mid_weight,
-          final: data.final_weight,
-          assignment: data.assignment_weight,
-          quizzes: data.quizzes_weight,
-          presentation: data.presentation_weight,
-          practical: data.practical_weight || 0,
-          project: data.project_weight || 0
-        };
-
-        // 6. CREATE HEADER
+        // 4. Create Table Header
         const thead = document.getElementById('thead');
         let headerRow = `
-    <tr>
-      <th>Student Name</th>
-      <th>Mid</th>
-      <th>Final</th>
-      <th>Assignment</th>
-      <th>Quizzes</th>
-      <th>Presentation</th>
-    `;
-
-        if (hasPractical) headerRow += `<th>Practical</th>`;
-        if (hasProject) headerRow += `<th>Term Project</th>`;
-
-        headerRow += `
-      <th>Sessional</th>
-      <th>Total (100)</th>
-      <th>Percentage (%)</th>
-      <th>Grade</th>
-      <th>Status</th>
-      <th>Class Rank</th>
-    </tr>
-    `;
-
+        <tr>
+          <th>Student Name</th>
+          <th>Mid</th>
+          <th>Final</th>
+          <th>Assignment</th>
+          <th>Quizzes</th>
+          <th>Presentation</th>
+          ${hasPractical ? `<th>Practical</th>` : ''}
+          ${hasProject ? `<th>Project</th>` : ''}
+          <th>Sessional</th>
+          <th>Total (100)</th>
+          <th>Percentage (%)</th>
+          <th>Grade</th>
+          <th>Status</th>
+          <th>Class Rank</th>
+        </tr>
+      `;
         thead.innerHTML = headerRow;
 
-        // 7. CALCULATE FUNCTION
-        function calculateSessional(student) {
-          let sessional = 0;
+        // 5. Calculation Logic
+        function calculateGrades(student) {
+          const categories = [
+            { key: 'mid', actual: student.mid, total: weightData.mid_total, weight: weightData.mid_weight },
+            { key: 'final', actual: student.final, total: weightData.final_total, weight: weightData.final_weight },
+            { key: 'assignment', actual: student.assignment, total: weightData.assignment_total, weight: weightData.assignment_weight },
+            { key: 'quizzes', actual: student.quizzes, total: weightData.quizzes_total, weight: weightData.quizzes_weight },
+            { key: 'presentation', actual: student.presentation, total: weightData.presentation_total, weight: weightData.presentation_weight }
+          ];
 
-          sessional += (student.mid || 0) * weights.mid / 100;
-          sessional += (student.final || 0) * weights.final / 100;
-          sessional += (student.assignment || 0) * weights.assignment / 100;
-          sessional += (student.quizzes || 0) * weights.quizzes / 100;
-          sessional += (student.presentation || 0) * weights.presentation / 100;
+          if (hasPractical) categories.push({ key: 'practical', actual: student.practical, total: weightData.practical_total, weight: weightData.practical_weight });
+          if (hasProject) categories.push({ key: 'project', actual: student.project, total: weightData.project_total, weight: weightData.project_weight });
 
-          if (hasPractical) sessional += (student.practical || 0) * weights.practical / 100;
-          if (hasProject) sessional += (student.project || 0) * weights.project / 100;
+          let grandTotal = 0;
+          let sessionalTotal = 0;
 
-          return sessional;
+          categories.forEach(cat => {
+            const obtained = cat.actual || 0;
+            const max = cat.total || 1; // Prevent division by zero
+            const weight = cat.weight || 0;
+
+            const contribution = (obtained / max) * weight;
+            grandTotal += contribution;
+
+            // Sessional calculation (Everything except Mid and Final)
+            if (cat.key !== 'mid' && cat.key !== 'final') {
+              sessionalTotal += contribution;
+            }
+          });
+
+          // Grading logic
+          let grade = "F";
+          if (grandTotal >= 80) grade = "A";
+          else if (grandTotal >= 70) grade = "B";
+          else if (grandTotal >= 60) grade = "C";
+          else if (grandTotal >= 50) grade = "D";
+
+          return {
+            sessional: sessionalTotal.toFixed(2),
+            total: grandTotal.toFixed(2),
+            percentage: grandTotal.toFixed(2),
+            grade: grade,
+            status: grandTotal >= 50 ? "Pass" : "Fail"
+          };
         }
 
-        // 8. CALCULATIONS
-        students.forEach(s => {
-          s.sessional = calculateSessional(s);
-          s.total = s.sessional;
+        // 6. Process Students and Rank
+        let students = resultData.students.map(s => ({
+          ...s,
+          results: calculateGrades(s)
+        }));
+
+        // Sort by total marks for ranking
+        // Create a copy of totals for ranking
+        const totals = students.map(s => parseFloat(s.results.total));
+
+        // Create sorted copy (ONLY for rank calculation, not affecting UI)
+        const sortedTotals = [...totals].sort((a, b) => b - a);
+
+        // Assign rank without changing original order
+        students = students.map(s => {
+          const total = parseFloat(s.results.total);
+          const rank = sortedTotals.indexOf(total) + 1;
+
+          return {
+            ...s,
+            rank: rank
+          };
         });
 
-        students.sort((a, b) => b.total - a.total);
-
-        // 9. TABLE BODY
+        // 7. Render Table Body
         const resultBody = document.getElementById('resultBody');
-        resultBody.innerHTML = "";
-
-        students.forEach((student, index) => {
-          let row = `
-      <tr>
-        <td>${student.name || ''}</td>
-        <td>${student.mid || ''}</td>
-        <td>${student.final || ''}</td>
-        <td>${student.assignment || ''}</td>
-        <td>${student.quizzes || ''}</td>
-        <td>${student.presentation || ''}</td>
-      `;
-
-          if (hasPractical) row += `<td>${student.practical || ''}</td>`;
-          if (hasProject) row += `<td>${student.project || ''}</td>`;
-
-          row += `
-        <td>${student.sessional.toFixed(2)}</td>
-        <td>${student.total.toFixed(2)}</td>
-        <td>${student.total.toFixed(2)}</td>
-        <td>${student.total >= 50 ? 'A' : 'F'}</td>
-        <td>${student.total >= 50 ? 'Pass' : 'Fail'}</td>
-        <td>${index + 1}</td>
-      </tr>
-      `;
-
-          resultBody.innerHTML += row;
-        });
+        if (students.length === 0) {
+          resultBody.innerHTML = "<tr><td colspan='15'>No student records found.</td></tr>";
+        } else {
+          resultBody.innerHTML = students.map((student, index) => `
+            <tr>
+                <td>${student.name}</td>
+                <td>${student.mid || 0}</td>
+                <td>${student.final || 0}</td>
+                <td>${student.assignment || 0}</td>
+                <td>${student.quizzes || 0}</td>
+                <td>${student.presentation || 0}</td>
+                ${hasPractical ? `<td>${student.practical || 0}</td>` : ''}
+                ${hasProject ? `<td>${student.project || 0}</td>` : ''}
+                <td>${student.results.sessional}</td>
+                <td>${student.results.total}</td>
+                <td>${student.results.percentage}%</td>
+                <td><strong>${student.results.grade}</strong></td>
+                <td style="color: ${student.results.status === 'Pass' ? 'green' : 'red'}">${student.results.status}</td>
+                <td>${student.rank}</td>
+            </tr>
+          `).join('');
+        }
 
       } catch (error) {
-        console.error("Error:", error);
+        console.error("Initialization Error:", error);
+        document.getElementById("classInfo").textContent = "Error loading data. Check console.";
       }
     }
 
-    // CALL FUNCTION
     loadData();
 
-    // EXPORT BUTTON
-    document.getElementById('exportBtn').addEventListener('click', () => {
-      alert('Export to PDF functionality will be implemented later.');
-    });
+    // EXPORT PDF - Now calling the function from pdf-generator.js
+document.getElementById('exportBtn').addEventListener('click', () => {
+    // Pass the IDs of your table and header elements
+    exportTableToPDF('resultTable', 'classInfo', 'teacherInfo');
+});
   </script>
 
 </body>
