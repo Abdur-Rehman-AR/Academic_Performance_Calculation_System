@@ -57,7 +57,7 @@ app.get("/check-routes", (req, res) => {
 });
 
 // 5. START SERVER
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 UOE System running at http://localhost:${PORT}`);
 });
