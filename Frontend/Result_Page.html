@@ -122,75 +122,97 @@
         document.getElementById("teacherInfo").textContent =
           `Teacher Name: ${resultData.teacher_name}`;
 
-        // 3. Setup Dynamic Flags & Weights/Totals
+        // 3. Setup Dynamic Flags
         const hasPractical = weightData.practical_total != null && weightData.practical_weight != null;
-        const hasProject = weightData.project_total != null && weightData.project_weight != null;
 
         // 4. Create Table Header
         const thead = document.getElementById('thead');
-        let headerRow = `
-        <tr>
-          <th>Student Name</th>
-          <th>Mid</th>
-          <th>Final</th>
-          <th>Assignment</th>
-          <th>Quizzes</th>
-          <th>Presentation</th>
-          ${hasPractical ? `<th>Practical</th>` : ''}
-          ${hasProject ? `<th>Project</th>` : ''}
-          <th>Sessional</th>
-          <th>Total (100)</th>
-          <th>Percentage (%)</th>
-          <th>Grade</th>
-          <th>Status</th>
-          <th>Class Rank</th>
-        </tr>
-      `;
-        thead.innerHTML = headerRow;
+        thead.innerHTML = `
+      <tr>
+        <th>Student Name</th>
+        <th>Mid</th>
+        <th>Final</th>
+        ${hasPractical ? `<th>Practical</th>` : ''}
+        <th>Sessional (20)</th>
+        <th>Total (100)</th>
+        <th>Percentage (%)</th>
+        <th>Grade</th>
+        <th>Status</th>
+        <th>Class Rank</th>
+      </tr>
+    `;
 
         // 5. Calculation Logic
         function calculateGrades(student) {
-          const categories = [
-            { key: 'mid', actual: student.mid, total: weightData.mid_total, weight: weightData.mid_weight },
-            { key: 'final', actual: student.final, total: weightData.final_total, weight: weightData.final_weight },
-            { key: 'assignment', actual: student.assignment, total: weightData.assignment_total, weight: weightData.assignment_weight },
-            { key: 'quizzes', actual: student.quizzes, total: weightData.quizzes_total, weight: weightData.quizzes_weight },
-            { key: 'presentation', actual: student.presentation, total: weightData.presentation_total, weight: weightData.presentation_weight }
-          ];
 
-          if (hasPractical) categories.push({ key: 'practical', actual: student.practical, total: weightData.practical_total, weight: weightData.practical_weight });
-          if (hasProject) categories.push({ key: 'project', actual: student.project, total: weightData.project_total, weight: weightData.project_weight });
+          // ✅ MID
+          const mid_weighted =
+            ((student.mid || 0) / (weightData.mid_total || 1)) *
+            (weightData.mid_weight || 0);
 
-          let grandTotal = 0;
-          let sessionalTotal = 0;
+          // ✅ FINAL
+          const final_weighted =
+            ((student.final || 0) / (weightData.final_total || 1)) *
+            (weightData.final_weight || 0);
 
-          categories.forEach(cat => {
-            const obtained = cat.actual || 0;
-            const max = cat.total || 1; // Prevent division by zero
-            const weight = cat.weight || 0;
+          // ✅ PRACTICAL (if exists)
+          let practical_weighted = 0;
+          if (hasPractical) {
+            practical_weighted =
+              ((student.practical || 0) / (weightData.practical_total || 1)) *
+              (weightData.practical_weight || 0);
+          }
 
-            const contribution = (obtained / max) * weight;
-            grandTotal += contribution;
+          // ✅ 🔥 SESSIONAL ONLY FROM INTERNAL COMPONENTS
+          const assignment_weighted =
+            ((student.assignment || 0) / (weightData.assignment_total || 1)) *
+            (weightData.assignment_weight || 0);
 
-            // Sessional calculation (Everything except Mid and Final)
-            if (cat.key !== 'mid' && cat.key !== 'final') {
-              sessionalTotal += contribution;
-            }
-          });
+          const quiz_weighted =
+            ((student.quizzes || 0) / (weightData.quizzes_total || 1)) *
+            (weightData.quizzes_weight || 0);
 
-          // Grading logic
+          const presentation_weighted =
+            ((student.presentation || 0) / (weightData.presentation_total || 1)) *
+            (weightData.presentation_weight || 0);
+
+          const project_weighted =
+            ((student.project || 0) / (weightData.project_total || 1)) *
+            (weightData.project_weight || 0);
+
+          // 👉 Only these 4 go into sessional
+          const sessionalRaw = assignment_weighted + quiz_weighted + presentation_weighted + project_weighted;
+
+          const sessionalMax =
+            (weightData.assignment_weight || 0) +
+            (weightData.quizzes_weight || 0) +
+            (weightData.presentation_weight || 0) +
+            (weightData.project_weight || 0);
+
+          // 🔥 Convert to OUT OF 20
+          const sessional =
+            sessionalMax > 0 ? (sessionalRaw / sessionalMax) * 20 : 0;
+
+          let totalMarks = (student.mid || 0) + (student.final || 0) + sessional;
+
+if (hasPractical) {
+  totalMarks += (student.practical || 0);
+}
+
+          // ✅ GRADE
           let grade = "F";
-          if (grandTotal >= 80) grade = "A";
-          else if (grandTotal >= 70) grade = "B";
-          else if (grandTotal >= 60) grade = "C";
-          else if (grandTotal >= 50) grade = "D";
+          if (totalMarks >= 90) grade = "A+";
+          else if (totalMarks >= 80) grade = "A";
+          else if (totalMarks >= 70) grade = "B";
+          else if (totalMarks >= 60) grade = "C";
+          else if (totalMarks >= 50) grade = "D";
 
           return {
-            sessional: sessionalTotal.toFixed(2),
-            total: grandTotal.toFixed(2),
-            percentage: grandTotal.toFixed(2),
-            grade: grade,
-            status: grandTotal >= 50 ? "Pass" : "Fail"
+            sessional: sessional.toFixed(2),
+            total: totalMarks.toFixed(2),
+            percentage: totalMarks.toFixed(2),
+            grade,
+            status: totalMarks >= 50 ? "Pass" : "Fail"
           };
         }
 
@@ -200,47 +222,35 @@
           results: calculateGrades(s)
         }));
 
-        // Sort by total marks for ranking
-        // Create a copy of totals for ranking
+        // Ranking logic
         const totals = students.map(s => parseFloat(s.results.total));
-
-        // Create sorted copy (ONLY for rank calculation, not affecting UI)
         const sortedTotals = [...totals].sort((a, b) => b - a);
 
-        // Assign rank without changing original order
         students = students.map(s => {
           const total = parseFloat(s.results.total);
           const rank = sortedTotals.indexOf(total) + 1;
-
-          return {
-            ...s,
-            rank: rank
-          };
+          return { ...s, rank: rank };
         });
 
         // 7. Render Table Body
         const resultBody = document.getElementById('resultBody');
         if (students.length === 0) {
-          resultBody.innerHTML = "<tr><td colspan='15'>No student records found.</td></tr>";
+          resultBody.innerHTML = "<tr><td colspan='10'>No student records found.</td></tr>";
         } else {
-          resultBody.innerHTML = students.map((student, index) => `
-            <tr>
-                <td>${student.name}</td>
-                <td>${student.mid || 0}</td>
-                <td>${student.final || 0}</td>
-                <td>${student.assignment || 0}</td>
-                <td>${student.quizzes || 0}</td>
-                <td>${student.presentation || 0}</td>
-                ${hasPractical ? `<td>${student.practical || 0}</td>` : ''}
-                ${hasProject ? `<td>${student.project || 0}</td>` : ''}
-                <td>${student.results.sessional}</td>
-                <td>${student.results.total}</td>
-                <td>${student.results.percentage}%</td>
-                <td><strong>${student.results.grade}</strong></td>
-                <td style="color: ${student.results.status === 'Pass' ? 'green' : 'red'}">${student.results.status}</td>
-                <td>${student.rank}</td>
-            </tr>
-          `).join('');
+          resultBody.innerHTML = students.map(student => `
+        <tr>
+          <td>${student.name}</td>
+          <td>${student.mid || 0}</td>
+          <td>${student.final || 0}</td>
+          ${hasPractical ? `<td>${student.practical || 0}</td>` : ''}
+          <td>${student.results.sessional}</td>
+          <td>${student.results.total}</td>
+          <td>${student.results.percentage}%</td>
+          <td><strong>${student.results.grade}</strong></td>
+          <td style="color: ${student.results.status === 'Pass' ? 'green' : 'red'}">${student.results.status}</td>
+          <td>${student.rank}</td>
+        </tr>
+      `).join('');
         }
 
       } catch (error) {
@@ -251,11 +261,10 @@
 
     loadData();
 
-    // EXPORT PDF - Now calling the function from pdf-generator.js
-document.getElementById('exportBtn').addEventListener('click', () => {
-    // Pass the IDs of your table and header elements
-    exportTableToPDF('resultTable', 'classInfo', 'teacherInfo');
-});
+    // Export PDF functionality
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      exportTableToPDF('resultTable', 'classInfo', 'teacherInfo');
+    });
   </script>
 
 </body>
