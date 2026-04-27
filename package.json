@@ -2,7 +2,7 @@
   "name": "academic-performance-calculation-system",
   "version": "1.0.0",
   "description": "",
-  "main": "Login_Backend.js",
+  "main": "Server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
